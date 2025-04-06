@@ -1,0 +1,17 @@
+# Check https://rust-lang.github.io/rustfmt for more options
+
+# Reorders imports but keeps them nested when possible
+reorder_imports = true
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate" # Groups imports into standard, external, and crate-local sections
+
+# Ensures `pub mod` declarations are always placed consistently across files
+normalize_doc_attributes = true
+
+# Keeps imports structured and readable
+imports_layout = "HorizontalVertical" # Groups short imports on one line, long ones vertically
+
+# General formatting improvements
+max_width = 100                 # Adjust line width
+use_field_init_shorthand = true # Uses shorthand for struct fields
+edition = "2024"                # Ensures compatibility with Rust 2024 edition
