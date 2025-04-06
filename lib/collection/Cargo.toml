@@ -1,0 +1,13 @@
+[package]
+name = "collection"
+version = "1.85.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+validator = { workspace = true }
+actix-web-validator = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }

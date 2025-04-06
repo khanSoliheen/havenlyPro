@@ -1,0 +1,16 @@
+[package]
+name = "api"
+version = "1.85.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+serde_json = { workspace = true }
+serde = { workspace = true }
+diesel = { workspace = true }
+rust_decimal = { workspace = true }
+diesel-derive-enum = { workspace = true }
+validator = { workspace = true }
+chrono = { workspace = true }
