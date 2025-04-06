@@ -13,7 +13,7 @@ use serde_json::{Value, from_str, json};
 use crate::DbPool;
 
 #[get("/users")]
-async fn get_users(pool: web::Data<DbPool>, query: web::Query<FieldSelection>) -> HttpResponse {
+async fn get_users(pool: web::Data<DbPool>, input: web::Query<FieldSelection>) -> HttpResponse {
     let mut conn = match pool.get() {
         Ok(c) => c,
         Err(err) => {
@@ -33,7 +33,7 @@ async fn get_users(pool: web::Data<DbPool>, query: web::Query<FieldSelection>) -
         "updated_at",
     ];
 
-    let selected_fields: Vec<&str> = match &query.fields {
+    let selected_fields: Vec<&str> = match &input.fields {
         Some(fields) => fields
             .split(',')
             .map(|f| f.trim())
@@ -51,25 +51,25 @@ async fn get_users(pool: web::Data<DbPool>, query: web::Query<FieldSelection>) -
     let mut bind_values: Vec<String> = vec![];
     let mut param_counter = 1;
 
-    if let Some(email) = &query.email {
+    if let Some(email) = &input.email {
         filters.push(format!("email ILIKE ${}", param_counter));
         bind_values.push(format!("%{}%", email));
         param_counter += 1;
     }
 
-    if let Some(name) = &query.name {
+    if let Some(name) = &input.name {
         filters.push(format!("name ILIKE ${}", param_counter));
         bind_values.push(format!("%{}%", name));
         param_counter += 1;
     }
 
-    if let Some(role) = &query.role {
+    if let Some(role) = &input.role {
         filters.push(format!("role = ${}", param_counter));
         bind_values.push(role.clone());
         param_counter += 1;
     }
 
-    if let Some(phone) = &query.phone_number {
+    if let Some(phone) = &input.phone_number {
         filters.push(format!("phone_number ILIKE ${}", param_counter));
         bind_values.push(format!("%{}%", phone));
     }
@@ -81,9 +81,11 @@ async fn get_users(pool: web::Data<DbPool>, query: web::Query<FieldSelection>) -
     };
 
     let sql = format!(
-        "SELECT row_to_json(u) as user FROM (SELECT {} FROM users {}) u",
+        "SELECT row_to_json(u) as user FROM (SELECT {} FROM users {} LIMIT ${} OFFSET ${}) u",
         selected_fields.join(", "),
-        where_clause
+        where_clause,
+        param_counter,
+        param_counter + 1
     );
 
     // Create boxed query to handle dynamic bind count
@@ -91,6 +93,10 @@ async fn get_users(pool: web::Data<DbPool>, query: web::Query<FieldSelection>) -
     for value in bind_values {
         query = query.bind::<Text, _>(value);
     }
+
+    query = query
+        .bind::<Integer, _>(input.limit.unwrap_or(10))
+        .bind::<Integer, _>(input.off_set.unwrap_or(0));
 
     // Execute with boxed query
     let result: Result<Vec<RawJsonUser>, _> = query.get_results(&mut *conn);
