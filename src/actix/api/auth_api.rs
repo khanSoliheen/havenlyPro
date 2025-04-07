@@ -1,20 +1,75 @@
+use actix_jwt_auth_middleware::TokenSigner;
 use actix_web::{
     HttpResponse,
     post,
     web::{self},
 };
 use api::{
-    models::user::RegisterUser,
-    schema::users::{self, email, phone_number},
+    models::user::{LoginRequest, RegisterUser, User, UserJWT},
+    schema::users::{self, email, phone_number, table},
 };
 use diesel::prelude::*;
+use jwt_compact::alg::Ed25519;
 use validator::Validate;
 
 use crate::DbPool;
 
 #[post("/login")]
-async fn login() -> HttpResponse {
-    HttpResponse::Ok().body("login")
+async fn login(
+    db: web::Data<DbPool>,
+    body: web::Json<LoginRequest>,
+    token_signer: web::Data<TokenSigner<UserJWT, Ed25519>>,
+) -> HttpResponse {
+    let mut conn = match db.get() {
+        Ok(conn) => conn,
+        Err(_) => return HttpResponse::InternalServerError().body("DB connection failed"),
+    };
+
+    // Find the user by email
+    let result = table
+        .filter(email.eq(&body.email))
+        .first::<User>(&mut conn)
+        .optional();
+
+    let user = match result {
+        Ok(Some(u)) => u,
+        Ok(None) => return HttpResponse::Unauthorized().body("Invalid email or password"),
+        Err(e) => return HttpResponse::InternalServerError().body(format!("DB error: {e}")),
+    };
+
+    // TODO::Compare passwords (plaintext for now — should hash in prod)
+    if user.password != body.password {
+        return HttpResponse::Unauthorized().body("Invalid email or password");
+    }
+
+    let claims = UserJWT { id: user.id };
+
+    // Generate cookies
+    let access_cookie = match token_signer.create_access_cookie(&claims) {
+        Ok(c) => c,
+        Err(e) => {
+            return HttpResponse::InternalServerError().body(format!("Access token error: {e}"));
+        }
+    };
+    let refresh_cookie = match token_signer.create_refresh_cookie(&claims) {
+        Ok(c) => c,
+        Err(e) => {
+            return HttpResponse::InternalServerError().body(format!("Refresh token error: {e}"));
+        }
+    };
+
+    HttpResponse::Ok()
+        .cookie(access_cookie)
+        .cookie(refresh_cookie)
+        .json(serde_json::json!({
+            "message": "Logged in successfully",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "name": user.name,
+                "role": user.role
+            }
+        }))
 }
 
 #[post("/register")]
