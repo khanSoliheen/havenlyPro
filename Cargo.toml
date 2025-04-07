@@ -4,7 +4,7 @@ version = "1.85.0"
 edition = "2024"
 
 [workspace]
-members = ["lib/collection"]
+members = ["lib/collection", "lib/api"]
 
 [workspace.dependencies]
 validator = { version = "0.18.1", features = ["derive"] }
