@@ -1,20 +1,21 @@
 use std::env;
 
+use actix::api::health_check_api::configure_health_check_api;
 use actix_cors::Cors;
+use actix_jwt_auth_middleware::{Authority, TokenSigner, use_jwt::UseJWTOnApp};
 use actix_web::{App, HttpRequest, HttpResponse, HttpServer, error, middleware::Logger, web};
+use api::models::user::UserJWT;
 use collection::operations::validation;
 use diesel::{
     PgConnection,
     r2d2::{self, ConnectionManager},
 };
+use ed25519_compact::{KeyPair, Seed};
+use jwt_compact::alg::Ed25519;
 use serde_json::json;
 mod actix;
 
-use crate::actix::api::{
-    auth_api::config_auth_api,
-    health_check_api::configure_health_check,
-    users_api::configure_users_api,
-};
+use crate::actix::api::{auth_api::config_auth_api, users_api::configure_users_api};
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -30,7 +31,21 @@ async fn main() -> std::io::Result<()> {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let manager = r2d2::ConnectionManager::<PgConnection>::new(database_url);
     let pool = r2d2::Pool::builder().build(manager).unwrap();
+    let key_pair = KeyPair::from_seed(Seed::default());
     HttpServer::new(move || {
+        let signer = TokenSigner::<UserJWT, Ed25519>::new()
+            .signing_key(key_pair.sk.clone())
+            .algorithm(Ed25519)
+            .build()
+            .expect("token signer build failed");
+
+        let authority = Authority::new()
+            .refresh_authorizer(|| async move { Ok(()) })
+            .token_signer(Some(signer))
+            .verifying_key(key_pair.sk.public_key())
+            .build()
+            .expect("authority build failed");
+
         let cors = Cors::default()
             .allow_any_origin()
             .allow_any_method()
@@ -46,9 +61,12 @@ async fn main() -> std::io::Result<()> {
             .app_data(validate_query_config)
             .wrap(cors)
             .wrap(Logger::default())
+            .configure(configure_health_check_api)
             .configure(config_auth_api)
-            .configure(configure_health_check)
-            .configure(configure_users_api)
+            .use_jwt(
+                authority,
+                web::scope("/users").configure(configure_users_api),
+            )
     })
     .bind("127.0.0.1:3035")?
     .run()

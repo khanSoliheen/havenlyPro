@@ -4,6 +4,11 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+#[derive(Serialize, Deserialize)]
+pub struct UserJWT {
+    pub id: i32,
+}
+
 #[derive(Debug, Serialize, Deserialize, diesel_derive_enum::DbEnum)]
 #[ExistingTypePath = "crate::schema::sql_types::UserRole"]
 #[serde(rename_all = "lowercase")]
@@ -38,6 +43,12 @@ pub enum ServiceCategory {
     WeddingVideo,
     EventVideo,
     Other,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginRequest {
+    pub email: String,
+    pub password: String,
 }
 
 #[derive(Debug, diesel::deserialize::QueryableByName)]

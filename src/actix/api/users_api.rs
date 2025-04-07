@@ -12,7 +12,7 @@ use serde_json::{Value, from_str, json};
 
 use crate::DbPool;
 
-#[get("/users")]
+#[get("")]
 async fn get_users(pool: web::Data<DbPool>, input: web::Query<FieldSelection>) -> HttpResponse {
     let mut conn = match pool.get() {
         Ok(c) => c,
@@ -136,7 +136,7 @@ async fn get_users(pool: web::Data<DbPool>, input: web::Query<FieldSelection>) -
     }
 }
 
-#[get("/users/{user_id}")]
+#[get("/{user_id}")]
 async fn get_user(
     pool: Data<DbPool>,
     user_id: Path<i32>,
