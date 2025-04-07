@@ -9,6 +9,8 @@ pub struct FieldSelection {
     pub role: Option<String>,
     pub phone_number: Option<String>,
     pub limit: Option<i32>,
+    pub sort_by: Option<String>,
+    pub order: Option<String>,
     #[serde(rename = "skip")]
     pub off_set: Option<i32>,
 }
