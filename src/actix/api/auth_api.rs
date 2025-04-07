@@ -33,7 +33,7 @@ async fn login(
 
     let user = match result {
         Ok(Some(u)) => u,
-        Ok(None) => return HttpResponse::Unauthorized().body("Invalid email or password"),
+        Ok(_) => return HttpResponse::Unauthorized().body("Invalid email or password"),
         Err(e) => return HttpResponse::InternalServerError().body(format!("DB error: {e}")),
     };
 
