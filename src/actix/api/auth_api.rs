@@ -3,7 +3,10 @@ use actix_web::{
     post,
     web::{self},
 };
-use api::{models::user::RegisterUser, schema::users};
+use api::{
+    models::user::RegisterUser,
+    schema::users::{self, email, phone_number},
+};
 use diesel::prelude::*;
 use validator::Validate;
 
@@ -33,9 +36,16 @@ async fn register(pool: web::Data<DbPool>, user: web::Json<RegisterUser>) -> Htt
     // Insert into database
     match diesel::insert_into(users::table)
         .values(&new_user)
+        .on_conflict((email, phone_number))
+        .do_nothing()
         .execute(&mut *conn)
     {
         Ok(_) => HttpResponse::Created().json(new_user),
+        Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UniqueViolation,
+            _,
+        )) => HttpResponse::Conflict()
+            .body(format!("User with email {} already exists", new_user.email)),
         Err(e) => HttpResponse::InternalServerError().body(format!("DB Error: {}", e)),
     }
 }

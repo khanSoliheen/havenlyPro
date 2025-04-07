@@ -80,12 +80,29 @@ async fn get_users(pool: web::Data<DbPool>, input: web::Query<FieldSelection>) -
         String::new()
     };
 
+    let sort_field = input
+        .sort_by
+        .as_deref()
+        .filter(|f| allowed_fields.contains(f))
+        .unwrap_or("id");
+
+    let sort_order = input
+        .order
+        .as_deref()
+        .map(|o| o.to_uppercase())
+        .filter(|o| o == "ASC" || o == "DESC")
+        .unwrap_or_else(|| "DESC".to_string());
+
     let sql = format!(
-        "SELECT row_to_json(u) as user FROM (SELECT {} FROM users {} LIMIT ${} OFFSET ${}) u",
+        "SELECT row_to_json(u) as user FROM (
+            SELECT {} FROM users {} ORDER BY {} {} LIMIT ${} OFFSET ${}
+        ) u",
         selected_fields.join(", "),
-        where_clause,
-        param_counter,
-        param_counter + 1
+        where_clause,      // e.g. "WHERE email ILIKE $1"
+        sort_field,        // validated & safe
+        sort_order,        // e.g. "DESC" or "ASC"
+        param_counter,     // next bind: LIMIT
+        param_counter + 1  // next bind: OFFSET
     );
 
     // Create boxed query to handle dynamic bind count
