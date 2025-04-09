@@ -2,6 +2,7 @@ use std::env;
 
 use actix::api::health_check_api::configure_health_check_api;
 use actix_cors::Cors;
+use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_jwt_auth_middleware::{Authority, TokenSigner, use_jwt::UseJWTOnApp};
 use actix_web::{App, HttpRequest, HttpResponse, HttpServer, error, middleware::Logger, web};
 use api::models::user::UserJWT;
@@ -33,6 +34,12 @@ async fn main() -> std::io::Result<()> {
     let pool = r2d2::Pool::builder().build(manager).unwrap();
     let key_pair = KeyPair::from_seed(Seed::default());
     HttpServer::new(move || {
+        let governor_conf = GovernorConfigBuilder::default()
+            .requests_per_second(1) // 1 request per second
+            .burst_size(5) // allow up to 5 bursts at once
+            .finish()
+            .unwrap();
+        let governor = Governor::new(&governor_conf);
         let signer = TokenSigner::<UserJWT, Ed25519>::new()
             .signing_key(key_pair.sk.clone())
             .algorithm(Ed25519)
@@ -59,6 +66,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool.clone()))
             .app_data(validate_path_config)
             .app_data(validate_query_config)
+            .wrap(governor)
             .wrap(cors)
             .wrap(Logger::default())
             .configure(configure_health_check_api)

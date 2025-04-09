@@ -41,6 +41,9 @@ validator.workspace = true
 actix-jwt-auth-middleware = "0.5.0"
 jwt-compact = { version = "0.8.0", features = ["ed25519-compact"] }
 ed25519-compact = "2.1.1"
+argon2 = { version = "0.5.3", features = ["std"] }
+password-hash = "0.5.0"
+actix-governor = "0.8.0"
 
 collection = { path = "lib/collection" }
 api = { path = "lib/api" }
