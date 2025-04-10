@@ -6,12 +6,10 @@ use actix_web::{
 };
 use api::{
     models::user::{LoginRequest, RegisterUser, User, UserJWT},
-    schema::users::{self, email, table},
+    schema::users::{self, email, phone_number, table},
 };
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use diesel::prelude::*;
 use jwt_compact::alg::Ed25519;
-use password_hash::{SaltString, rand_core::OsRng};
 use validator::Validate;
 
 use crate::DbPool;
@@ -36,16 +34,11 @@ async fn login(
     let user = match result {
         Ok(Some(u)) => u,
         Ok(_) => return HttpResponse::Unauthorized().body("Invalid email or password"),
-        Err(e) => return HttpResponse::InternalServerError().body(format!("DB error: {}", e)),
+        Err(e) => return HttpResponse::InternalServerError().body(format!("DB error: {e}")),
     };
-    let is_password_correct = if let Ok(parsed_hash) = PasswordHash::new(&user.password) {
-        Argon2::default()
-            .verify_password(body.password.as_bytes(), &parsed_hash)
-            .is_ok()
-    } else {
-        false // Invalid stored hash format
-    };
-    if !is_password_correct {
+
+    // TODO::Compare passwords (plaintext for now — should hash in prod)
+    if user.password != body.password {
         return HttpResponse::Unauthorized().body("Invalid email or password");
     }
 
@@ -93,32 +86,21 @@ async fn register(pool: web::Data<DbPool>, user: web::Json<RegisterUser>) -> Htt
         Err(_) => return HttpResponse::InternalServerError().body("Failed to get DB connection"),
     };
 
-    let mut new_user = user.into_inner();
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
-    let hashed_password = argon2
-        .hash_password(new_user.password.as_bytes(), &salt)
-        .expect("password hashing failed");
+    let new_user = user.into_inner();
 
-    new_user.password = hashed_password.to_string();
     // Insert into database
     match diesel::insert_into(users::table)
         .values(&new_user)
+        .on_conflict((email, phone_number))
+        .do_nothing()
         .execute(&mut *conn)
     {
-        Ok(user) => HttpResponse::Created().json(user),
+        Ok(_) => HttpResponse::Created().json(new_user),
         Err(diesel::result::Error::DatabaseError(
             diesel::result::DatabaseErrorKind::UniqueViolation,
-            err,
-        )) => {
-            let msg = match err.constraint_name() {
-                Some("unique_email") => "email",
-                Some("unique_phone") => "phone number",
-                Some(c) => c,                // fallback to raw constraint name
-                None => "one of the fields", // fallback if not available
-            };
-            HttpResponse::Conflict().body(format!("User with {} already exists", msg))
-        }
+            _,
+        )) => HttpResponse::Conflict()
+            .body(format!("User with email {} already exists", new_user.email)),
         Err(e) => HttpResponse::InternalServerError().body(format!("DB Error: {}", e)),
     }
 }
