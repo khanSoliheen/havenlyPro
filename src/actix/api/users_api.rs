@@ -192,7 +192,7 @@ async fn get_user(
             Err(_) => HttpResponse::InternalServerError().body("Failed to parse JSON"),
         },
         Err(diesel::result::Error::NotFound) => {
-            HttpResponse::NotFound().body(format!("User not found with the provided id {}", uid))
+            HttpResponse::NotFound().body(format!("user not found with the provided id {}", uid))
         }
         Err(e) => HttpResponse::InternalServerError().body(format!("Database error: {:?}", e)),
     }
