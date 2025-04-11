@@ -1,5 +1,6 @@
 use actix_web::{
     HttpResponse,
+    cookie::{Cookie, time::Duration},
     get,
     web::{self, Data, Path, Query},
 };
@@ -200,7 +201,22 @@ async fn get_user(
 
 #[get("/logout")]
 async fn logout() -> HttpResponse {
-    HttpResponse::Ok().json("logout")
+    let clear_access = Cookie::build("access_token", "")
+        .http_only(true)
+        .secure(true)
+        .max_age(Duration::seconds(0))
+        .finish();
+
+    let clear_refresh = Cookie::build("refresh_token", "")
+        .http_only(true)
+        .secure(true)
+        .max_age(Duration::seconds(0))
+        .finish();
+
+    HttpResponse::Ok()
+        .cookie(clear_access)
+        .cookie(clear_refresh)
+        .json(serde_json::json!({ "message": "Logged out successfully" }))
 }
 
 pub fn configure_users_api(cfg: &mut web::ServiceConfig) {
