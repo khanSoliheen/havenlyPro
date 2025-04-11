@@ -1,6 +1,7 @@
 use actix_jwt_auth_middleware::TokenSigner;
 use actix_web::{
     HttpResponse,
+    cookie::SameSite,
     post,
     web::{self},
 };
@@ -52,18 +53,27 @@ async fn login(
     let claims = UserJWT { id: user.id };
 
     // Generate cookies
-    let access_cookie = match token_signer.create_access_cookie(&claims) {
+    let mut access_cookie = match token_signer.create_access_cookie(&claims) {
         Ok(c) => c,
         Err(e) => {
             return HttpResponse::InternalServerError().body(format!("Access token error: {e}"));
         }
     };
-    let refresh_cookie = match token_signer.create_refresh_cookie(&claims) {
+    let mut refresh_cookie = match token_signer.create_refresh_cookie(&claims) {
         Ok(c) => c,
         Err(e) => {
             return HttpResponse::InternalServerError().body(format!("Refresh token error: {e}"));
         }
     };
+    // Access token cookie configuration
+    access_cookie.set_http_only(true); // ❗ Prevents JavaScript from accessing the cookie (protects against XSS)
+    access_cookie.set_secure(false); // ❗ Ensures the cookie is only sent over HTTPS (protects against MITM)
+    access_cookie.set_same_site(SameSite::Lax); // ❗ Prevents the cookie from being sent in cross-site requests (protects against CSRF)
+
+    // Refresh token cookie configuration
+    refresh_cookie.set_http_only(true);
+    refresh_cookie.set_secure(false);
+    refresh_cookie.set_same_site(SameSite::Lax);
 
     HttpResponse::Ok()
         .cookie(access_cookie)
