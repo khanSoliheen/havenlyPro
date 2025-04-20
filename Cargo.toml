@@ -4,7 +4,16 @@ version = "1.85.0"
 edition = "2024"
 
 [workspace]
-members = ["lib/collection", "lib/api"]
+members = ["lib/collection", "lib/api", "notification_worker"]
+
+[dependencies.api]
+path = "lib/api"
+
+[dependencies.collection]
+path = "lib/collection"
+
+[dependencies.notification_worker]
+path = "notification_worker"
 
 [workspace.dependencies]
 validator = { version = "0.18.1", features = ["derive"] }
@@ -25,6 +34,10 @@ rust_decimal = { version = "1.37.1", features = [
 ] }
 diesel-derive-enum = { version = "2.1.0", features = ["postgres"] }
 chrono = { version = "0.4.40", features = ["serde"] }
+lapin = "2.5.3"
+lettre = "0.11.15"
+redis = "0.29.5"
+rand = "0.9.1"
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
@@ -44,6 +57,3 @@ ed25519-compact = "2.1.1"
 argon2 = { version = "0.5.3", features = ["std"] }
 password-hash = "0.5.0"
 actix-governor = "0.8.0"
-
-collection = { path = "lib/collection" }
-api = { path = "lib/api" }
