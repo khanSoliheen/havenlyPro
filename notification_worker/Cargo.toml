@@ -11,4 +11,4 @@ lapin = { workspace = true }
 lettre = { workspace = true }
 redis = { workspace = true }
 rand = { workspace = true }
-dotenv = { workspace = true }
+dotenvy = { workspace = true }
