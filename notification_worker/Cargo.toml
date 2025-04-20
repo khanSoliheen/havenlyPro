@@ -1,0 +1,14 @@
+[package]
+name = "notification_worker"
+version = "1.85.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+lapin = { workspace = true }
+lettre = { workspace = true }
+redis = { workspace = true }
+rand = { workspace = true }
+dotenv = { workspace = true }
