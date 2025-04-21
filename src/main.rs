@@ -6,7 +6,10 @@ use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_jwt_auth_middleware::{Authority, TokenSigner, use_jwt::UseJWTOnApp};
 use actix_web::{App, HttpRequest, HttpResponse, HttpServer, error, middleware::Logger, web};
 use api::models::user::UserJWT;
-use collection::operations::validation;
+use collection::{
+    connections::connections::{create_amqp_channel, create_redis_conn},
+    operations::validation,
+};
 use diesel::{
     PgConnection,
     r2d2::{self, ConnectionManager},
@@ -29,6 +32,8 @@ async fn main() -> std::io::Result<()> {
     }
     dotenvy::dotenv().ok();
     env_logger::init();
+    create_redis_conn().await;
+    create_amqp_channel().await;
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let manager = r2d2::ConnectionManager::<PgConnection>::new(database_url);
     let pool = r2d2::Pool::builder().build(manager).unwrap();
